@@ -16,7 +16,7 @@ Public instances of services like Salesforce resolve to public IP addresses. Whe
 ### Auditability and Traffic Symmetrics
 Regulatory frameworks (such as SOC2, HIPAA, or GDPR) often require proof of data transit paths. A network hub provides a centralized point for *VPC Flow Logs*. This captures every packet entering or leaving the Salesforce connection. Without this formal termination point, traffic monitoring becomes fragmented, making it difficult to verify that data has remained off the public internet during a compliance audit.
 
-## Technical Architecture
+## Technical Components
 
 | Component | Technical Role | Necessity for Private IP |
 | :--- | :--- | :--- |
