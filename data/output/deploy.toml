@@ -76,7 +76,7 @@ local oci_launcher_py = |||
                 return compute.launch_instance(launch_details).data
             except oci.exceptions.ServiceError as e:
                 if e.status == 429:
-                    print("Oracle says: 'Slow down!' (Rate Limited).")
+                    print("AWS says: 'Slow down!' (Rate Limited).")
                     return None
                 elif e.status == 500 and "Out of host capacity" in e.message:
                     print(f"⚠️  {ad.name} is full.")
