@@ -2,7 +2,7 @@
 A *Network Transit Hub* is a formalized, automated infrastructure subset designed to host specific cloud workloads under a governed security model. Unlike a standard VPC, which may lack inherent guardrails, a landing zone ensures that the network environment is pre-configured for compliance, centralized logging, and identity management before any external services are connected. This zone serves as the *administrative and technical boundary* where the AWS network meets the service provider endpoint.
 
 ## The Necessity of a Termination Point for Private IP
-When utilizing private IP addressing for Salesforce integration, traffic does not traverse the public internet via standard HTTPS/TLS over an Internet Gateway. Instead, it utilizes *unroutable private IP addresses*. This shift necessitates a dedicated termination point within a transit hub for the following reasons:
+When utilizing private IP addressing for cloud service integration, traffic does not traverse the public internet via standard HTTPS/TLS over an Internet Gateway. Instead, it utilizes *unroutable private IP addresses*. This shift necessitates a dedicated termination point within a transit hub for the following reasons:
 
 ### Network Address Translation (NAT) and Routing
 Using a SaaS Provider in regulated industires often requires a *VPC Endpoint Interface* within a private subnet. This interface acts as the termination point. Without a landing zone to provide the underlying VPC structure, there is no logical location to assign the private IP addresses required for the two networks to "see" each other.
