@@ -1,0 +1,11 @@
+origin_resource = "provider"
+
+[[link_resources]]
+with = "login"
+join = { local = "commercial_admin", remote = "name" }
+create_relation = { type = "RESPONSIBLE_FOR" }
+
+[[link_resources]]
+with = "login"
+join = { local = "technical_admin", remote = "name" }
+create_relation = { type = "MANAGED_BY" }

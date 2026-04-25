@@ -1,0 +1,38 @@
+[module]
+name = "OCI Landing Zone"
+url = "https://github.com/rescile/oci_landing_zone"
+version = "0.0.1"
+description = "tbd"
+rescile_version = ">=0.1.138"
+
+# dependencies: Optional list of other modules this module depends on.
+# These can be local paths (relative to this module) or Git URLs.
+[dependencies]
+graphviewer = "https://github.com/rescile/graphviewer"
+graml-module =  "https://github.com/rescile/graphml-module"
+rescile-graphiql-module = "https://github.com/rescile/rescile-graphiql-module/releases/download/v0.0.3/graphiql-module-offline.zip"
+
+[params.solution]
+description = "The solution describes the service footprint."
+required = true
+default = "OCI Landing Zone"
+
+[params.stage]
+description = "The lifecycle stage of the solution."
+required = true
+default = "DEV"
+allowed_values = ["DEV", "TEST", "PROD"]
+
+[params.tenant]
+description = "The tenant name identifiers the organization that uses the service."
+required = true
+default = "rescile"
+
+[assets."user.csv"]
+resource_type = "user" # Optional: Explicitly map the file to a resource type
+description = "The main asset file defining the users."
+name_template = "{{- function | lower -}}_{{- name  | lower -}}"
+[assets."user.csv".columns]
+name = { type = "string", required = true }
+function = { type = "string", required = true }
+scope = { type = "string", required = false }

@@ -1,0 +1,42 @@
+# This model represents a third tier model of a cloud domain and defines routers where provider resources become accessible.
+# Template function
+resource_function = { "template!" = '''
+{%- set purpose = origin_resource.function -%}
+{%- if purpose in ["access", "edge"] -%}
+    {%- set purpose = "gateway" -%}
+{%- else -%}
+    {%- set purpose = "cpe" -%}
+{%- endif -%}
+{{- purpose | default(value="none") | lower -}}
+''' }
+
+# Specify the resource dependency for a router
+origin_resource = "provider"
+
+# Create the central management router
+[[create_resource]]
+resource_type = "router"
+name = "cloud_management_router"
+relation_type = "PROVIDED_BY"
+[create_resource.properties]
+function = "{{- resource_function -}}"
+domain = "operation"
+provider = "{{- origin_resource.name -}}"
+cidr = "172.16.0.0/12"
+description = "A management router is a physical appliance that analyzes incoming data packets, determines the best path for them to travel across interconnected networks, and forwards them toward their intended destination."
+created = "{{- now(utc=true) | date(format='%Y-%m-%dT%H:%M:%SZ') -}}"
+
+
+# Create the resource type
+[[create_resource]]
+match_on = [ { property = "function", not = "internet" } ]
+resource_type = "router"
+name = "{{- origin_resource.name -}}_{{- origin_resource.function -}}_router"
+relation_type = "PROVIDED_BY"
+[create_resource.properties]
+function = "{{- resource_function -}}"
+domain = "{{- origin_resource.function -}}"
+provider = "{{- origin_resource.name -}}"
+cidr = "{{- origin_resource.cidr | default(value='192.168.0.0/16') -}}"
+description = "A {{- origin_resource.function -}} router is a {{- resource_function -}} appliance that analyzes incoming data packets, determines the best path for them to travel across interconnected networks, and forwards them toward their intended destination."
+created = "{{- now(utc=true) | date(format='%Y-%m-%dT%H:%M:%SZ') -}}"

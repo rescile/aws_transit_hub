@@ -1,0 +1,123 @@
+origin_resource = "subscription"
+
+[[output]]
+resource_type = "oci_launcher_py"
+filename = "{{ origin_resource.name }}.py"
+mimetype = "application/txt"
+name = "base/{{ origin_resource.name }}.py"
+jsonnet = '''
+local instance_shape = "VM.Standard.E2.1.Micro";
+local retry_delay = 60;
+
+local oci_launcher_py = |||
+    import json
+    import sys
+    import time
+    import oci
+
+    # 1. Load the configuration from the JSON file
+    try:
+        with open("oci_config.json", "r") as f:
+            cfg = json.load(f)
+    except FileNotFoundError:
+        print("❌ ERROR: oci_config.json not found.")
+        sys.exit(1)
+
+    # 2. Initialize OCI clients
+    compute = oci.core.ComputeClient(cfg)
+    network = oci.core.VirtualNetworkClient(cfg)
+
+    def validate_environment():
+        print("Performing Pre-flight checks...")
+        try:
+            network.get_subnet(cfg["subnet_id"])
+        except oci.exceptions.ServiceError as e:
+            print(f"❌ ERROR: Subnet validation failed: {e.message}")
+            sys.exit(1)
+
+        existing = compute.list_instances(
+            cfg["compartment_id"], display_name=cfg["instance_name"]
+        ).data
+        active = [i for i in existing if i.lifecycle_state != "TERMINATED"]
+
+        if active:
+            print(f"❌ ERROR: VM '{cfg['instance_name']}' already exists.")
+            sys.exit(1)
+
+        print("Environment valid.")
+
+    def launch():
+        with open(cfg["ssh_public_key_path"], "r") as f:
+            key_data = f.read().strip()
+
+        identity = oci.identity.IdentityClient(cfg)
+        ads = identity.list_availability_domains(cfg["tenancy"]).data
+
+        print(f"Found {len(ads)} Availability Domains in this region.")
+
+        for ad in ads:
+            print(f"Trying {ad.name}...")
+
+            launch_details = oci.core.models.LaunchInstanceDetails(
+                compartment_id=cfg["compartment_id"],
+                display_name=cfg["instance_name"],
+                availability_domain=ad.name,
+                shape="%(instance_shape)s",
+                source_details=oci.core.models.InstanceSourceViaImageDetails(
+                    source_type="image", image_id=cfg["image_id"]
+                ),
+                create_vnic_details=oci.core.models.CreateVnicDetails(
+                    subnet_id=cfg["subnet_id"], assign_public_ip=True
+                ),
+                metadata={"ssh_authorized_keys": key_data},
+            )
+
+            try:
+                return compute.launch_instance(launch_details).data
+            except oci.exceptions.ServiceError as e:
+                if e.status == 429:
+                    print("Oracle says: 'Slow down!' (Rate Limited).")
+                    return None
+                elif e.status == 500 and "Out of host capacity" in e.message:
+                    print(f"⚠️  {ad.name} is full.")
+                    continue
+                else:
+                    print(f"❌ Unexpected Error: {e.status} - {e.message}")
+                    raise e
+        return None
+
+    if __name__ == "__main__":
+        validate_environment()
+        instance = None
+        attempt = 1
+
+        while not instance:
+            print(f"Attempt {attempt}...")
+            instance = launch()
+            if not instance:
+                print("Waiting %(retry_delay)d seconds before retrying...")
+                time.sleep(%(retry_delay)d)
+                attempt += 1
+
+        print(f"\n SUCCESS! Instance '{instance.display_name}' is {instance.lifecycle_state}.")
+        print(f"OCID: {instance.id}")
+        time.sleep(5)
+
+        try:
+            vnic_attachments = compute.list_vnic_attachments(
+                cfg["compartment_id"], instance_id=instance.id
+            ).data
+            vnic = network.get_vnic(vnic_attachments[0].vnic_id).data
+            print("\n" + "=" * 40)
+            print(f"PUBLIC IP: {vnic.public_ip}")
+            print(f"SSH COMMAND: ssh opc@{vnic.public_ip}")
+            print("=" * 40)
+        except Exception as e:
+            print(f"⚠️ Could not fetch IP automatically: {e}")
+  |||;
+
+  std.format(oci_launcher_py, {
+      instance_shape: instance_shape,
+      retry_delay: retry_delay
+  })
+'''
