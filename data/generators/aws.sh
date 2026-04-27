@@ -5,16 +5,10 @@ set -euo pipefail
 DATA_SOURCE="https://raw.githubusercontent.com/boto/botocore/develop/botocore/data/endpoints.json"
 OUTPUT_FILE=${OUTPUT_FILE:-"../input/aws.json"}
 
-# Temporary file for storing our intermediate filtered tags
-TMP_FILE=$(mktemp)
-trap 'rm -f "$TMP_FILE"' EXIT
+echo "Retrieving regional services for AWS from github..."
 
-echo "Retrieve aws region endpoints from github..."
-
-# Fetch the current page quietly
 RESPONSE=$(curl -s "$DATA_SOURCE")
 
-# Extract tags matching "vX.Y.Z" exactly using jq's regex test, and append to temp file
 echo "$RESPONSE" | jq -r '.partitions[0].services | to_entries |
     map({service: .key, region: (.value.endpoints | keys[])}) |
     reduce .[] as $item ({};

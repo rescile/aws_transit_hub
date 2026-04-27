@@ -6,7 +6,6 @@ description = "tbd"
 rescile_version = ">=0.1.138"
 
 # dependencies: Optional list of other modules this module depends on.
-# These can be local paths (relative to this module) or Git URLs.
 [dependencies]
 graphviewer = "https://github.com/rescile/graphviewer"
 graml-module =  "https://github.com/rescile/graphml-module"
@@ -15,7 +14,7 @@ rescile-graphiql-module = "https://github.com/rescile/rescile-graphiql-module/re
 [params.solution]
 description = "The solution describes the service footprint."
 required = true
-default = "OCI Landing Zone"
+default = "AWS Network Hub"
 
 [params.stage]
 description = "The lifecycle stage of the solution."
@@ -26,7 +25,7 @@ allowed_values = ["DEV", "TEST", "PROD"]
 [params.tenant]
 description = "The tenant name identifiers the organization that uses the service."
 required = true
-default = "rescile"
+default = "YourName"
 
 [assets."user.csv"]
 resource_type = "user" # Optional: Explicitly map the file to a resource type
