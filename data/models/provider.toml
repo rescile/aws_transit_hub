@@ -1,9 +1,10 @@
 # A cloud provider owns and operates data centers to "rent out" computing power, storage, and/or software.
+origin_resource = "account"
 
 [[create_resource]]
 resource_type = "provider"
 relation_type = "DEFINED_BY"
-name = "aws"
+name = "{{origin_resource.name}}_{{origin_resource.function}}"
 [create_resource.properties]
 function = "public"
 commercial_admin = "account_manager"
