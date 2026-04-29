@@ -11,10 +11,10 @@ A Network Hub is a small AWS account designed that connects SaaS hosted on amazo
 | **IAM & Guardrails** | Identity and Access Management. | Restricts who can modify the private connection. |
 
 ## Private Connectivity
-Because we utilize private IP addressing for the cloud service integration, traffic does not traverse the public internet via standard HTTPS/TLS over an Internet Gateway. Instead, it utilizes *unroutable private IP addresses*. 
+The network zone enables cloud service integrations via private IP addressing, hence traffic does not traverse the public internet via standard HTTPS/TLS over an Internet Gateway, it utilizes *unroutable private IP addresses*. The setup provides the following functionality:
 
 ### Network Address Translation (NAT) and Routing
-Using a SaaS Provider in regulated industries often requires a *VPC Endpoint Interface* within a private subnet. This interface acts as the termination point. Without a network hub to provide the underlying VPC structure, there is no logical location to assign the private IP addresses required for the two networks to "see" each other.
+Often, SaaS clients in regulated industries like banking, insurance and healthcare require a *VPC Endpoint Interface* within a private subnet. This interface acts as the termination point. The network hub provides a VPC structure, with no logical location to assign the private IP addresses required for the two networks to "see" each other.
 
 ### Encapsulation of the Security Perimeter
 A termination point allows for the application of Micro-segmentation. By terminating the connection in a controlled zone, organizations can apply *Stateful Firewalls* (Security Groups) and *Stateless Filters* (Network ACLs) directly to the endpoint. This ensures that if a resource within the cloud environment is compromised, the threat cannot move laterally into the Salesforce environment, as the landing zone acts as a strictly governed gateway.
