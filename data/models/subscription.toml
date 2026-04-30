@@ -1,12 +1,9 @@
 # A subscription is an active contract that grants permission to use the resources at a cloud provider. It acts as the bridge between an identity and a provider's billing system.
-origin_resource = "provider"
 
 [[create_resource]]
 resource_type = "subscription"
-name = " {{- origin_resource.name | lower -}}_{{- stage | lower -}}_{{- solution | lower -}}"
+name = "{{- tenant | lower -}}_{{- solution | lower -}}_{{- stage | lower -}}"
 [create_resource.properties]
-function = "dns"
-provider = "{{- origin_resource.name | lower -}}"
 tenant = "{{- tenant | lower -}}"
 description = "This subscription defines the cloud environment for the resident rescile and captures the dependencies for the solution deployment."
 #cost_center = "{{- solutions[solution].cost_center -}}"

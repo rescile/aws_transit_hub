@@ -2,7 +2,7 @@
 name = "AWS Network Hub"
 url = "https://github.com/rescile/oci_landing_zone"
 version = "0.0.1"
-description = "A network hub for an AWS-based SaaS provider acts as a centralized Transit Gateway that simplifies connectivity by routing traffic between multiple application VPCs and customer networks through a single, scalable point. This architecture creates a hub-and-spoke model that allows the provider to efficiently manage security inspections and inter-service communication without the complexity of individual peering connections."
+description = "A network hub acts as a centralized Transit Gateway for SaaS provider and simplifies connectivity by routing traffic between multiple application VPCs and customer networks through a single, scalable point. This architecture creates a hub-and-spoke model that allows the provider to efficiently manage security inspections and inter-service communication without the complexity of individual peering connections."
 rescile_version = ">=0.1.138"
 
 # dependencies: Optional list of other modules this module depends on.
@@ -14,7 +14,7 @@ rescile-graphiql-module = "https://github.com/rescile/rescile-graphiql-module/re
 [params.solution]
 description = "The solution describes the service footprint."
 required = true
-default = "AWS Network Hub"
+default = "TransitHub"
 
 [params.stage]
 description = "The lifecycle stage of the solution."

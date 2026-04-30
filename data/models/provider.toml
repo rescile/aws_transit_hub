@@ -4,9 +4,10 @@ origin_resource = "account"
 [[create_resource]]
 resource_type = "provider"
 relation_type = "DEFINED_BY"
-name = "{{origin_resource.original_name}}_{{origin_resource.function}}"
+name = "{{- origin_resource.original_name -}}_{{- origin_resource.function -}}"
 [create_resource.properties]
 function = "public"
+display_name = "{{- origin_resource.original_name -}}"
 commercial_admin = "account_management"
 technical_admin = "cloud_operation"
 region = "{{- location -}}"
