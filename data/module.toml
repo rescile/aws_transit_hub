@@ -67,6 +67,14 @@ abort_on_failure = false
 description = "Retrieve AWS Services from GitHub."
 runner = "exec"
 target_input = "aws_region_service.json"
-command = ["aws_fetch_regions.sh"]
+command = ["aws_region_service.sh"]
+from_stdout = false
+ttl = "24h"
+
+[generator.aws_region_map]
+description = "Retrieve AWS Regions from GitHub."
+runner = "exec"
+target_input = "aws_region_map.json"
+command = ["aws_region_map.sh"]
 from_stdout = false
 ttl = "24h"

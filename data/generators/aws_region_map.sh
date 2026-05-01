@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Configuration
 SOURCE_NAME="GitHub (jsonmaur/aws-regions)"
 URL="https://raw.githubusercontent.com/jsonmaur/aws-regions/master/regions.json"
-FILE="regions.json"
+FILE="input/regions.json"
 ETAG_FILE="regions.etag"
 MOD_DATE_FILE="regions.last_mod"
 
@@ -25,14 +25,14 @@ if [ "$STATUS" -eq 200 ]; then
     curl -s -o "$FILE" "$URL"
     NEW_DATE=$(echo "$RESPONSE_HEADERS" | grep -i "last-modified:" | cut -d' ' -f2- | tr -d '\r')
     echo "$NEW_DATE" > "$MOD_DATE_FILE"
-    
+
     echo "STATUS: New version downloaded!"
     echo "FILE UPDATED ON: $NEW_DATE"
 
 elif [ "$STATUS" -eq 304 ]; then
     # No change: Read the saved date
     SAVED_DATE=$(cat "$MOD_DATE_FILE" 2>/dev/null || echo "Unknown")
-    
+
     echo "STATUS: No update needed (Cached)"
     echo "LAST KNOWN UPDATE: $SAVED_DATE"
 
