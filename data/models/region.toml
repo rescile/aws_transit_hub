@@ -1,14 +1,24 @@
 # This model represents a third tier model of a cloud domain and defines locations where provider resources can be consumed.
 origin_resource = "provider"
 
-#services = { "json!" = "aws_region_service.json"}
+aws_region_services = { "json!" = "aws_region_service.json" }
+aws_services = { "function" = '''
+    {% set service_portfolio = [] %}
+    {% set loc = origin_resource.region_code %}
+    {% for s in aws_region_services %}
+        {% if s.region == loc %}
+            {% set_global service_portfolio = service_portfolio | concat(with=[s.service]) %}
+        {% endif %}
+    {% endfor %}
+    {{ service_portfolio | json_encode() }}
+''' }
 endpoints = { "json!" = "aws_region_endpoint.json" }
-service_endpoint = { "function!" = '''
+aws_endpoints = { "function!" = '''
     {% set unique_services = [] %}
-    {% set location = property.value %}
+    {% set loc = origin_resource.region_code %}
     {% for e in endpoints.prefixes %}
-        {% if e.region == location %}
-            {# Check if the service is already in our list #}
+        {% if e.region == loc %}
+            {# Check if the service is already in the list #}
             {% if e.service in unique_services %}
                 {# Do nothing #}
             {% else %}
@@ -22,12 +32,13 @@ service_endpoint = { "function!" = '''
 
 # Create the resource type
 [[create_resource]]
-match_on = { property = "original_name", value = "aws" }
-create_from = { property = "region" }
+create_from = { property = "location", as = "region" }
+name = "{{- origin_resource.original_name | lower -}}_{{- property.value | lower -}}_region"
 relation_type = "MANAGED_BY"
 [create_resource.properties]
-function = "{{- origin_resource.original_name -}}"
-#service = "{{ services[property.value] }}"
-endpoint = "{{ service_endpoint }}"
-description = "The region describes the physical, geographical place where infrastructure resides, where your data is stored, and where your applications run."
+function = "{{- origin_resource.original_name | lower -}}"
+region_code = "{{- origin_resource.region_code -}}"
+service = "{% if origin_resource.original_name | lower == 'aws' %}{{ aws_services }}{% endif %}"
+endpoint = "{% if origin_resource.original_name | lower == 'aws' %}{{ aws_endpoint }}{% endif %}"
+description = "The region describes a {{ origin_resource.original_name }} managed, physical, geographical location of where infrastructure resides, data is stored, and applications run."
 created = "{{- now(utc=true) | date(format='%Y-%m-%dT%H:%M:%SZ') -}}"
