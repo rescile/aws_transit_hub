@@ -1,315 +1,772 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>Asset-Editor</title>
-        <link
-            href="https://fonts.googleapis.com/icon?family=Material+Icons"
-            rel="stylesheet"
-        />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Network Hub Explorer | Rescile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for tables */
+        .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
+        .diagram-container::-webkit-scrollbar { height: 8px; width: 8px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f1f1; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .loader {
+            border-top-color: #f59e0b;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-        <style>
-            :root {
-                --primary: #007bff;
-                --bg: #f0f2f5;
-            }
-            body {
-                font-family: system-ui, sans-serif;
-                margin: 0;
-                display: flex;
-                height: 100vh;
-                background: var(--bg);
-            }
+        /* Mermaid diagram styling */
+        .diagram-wrapper {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .diagram-container {
+            overflow: auto;
+            padding: 1.5rem;
+            cursor: grab;
+            height: 100%;
+        }
+        .diagram-container.dragging { cursor: grabbing; }
+        .diagram-container svg { display: block; min-width: 100%; min-height: 100%; }
+        .diagram-code-container {
+            overflow: auto;
+            padding: 1.5rem;
+            height: 100%;
+            display: none;
+        }
+        .diagram-code-container pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        }
+        .tab-btn {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+            font-size: 0.8125rem; font-weight: 500;
+            border: 1px solid #d1d5db; background: white;
+            color: #374151; cursor: pointer; transition: all 0.15s;
+        }
+        .tab-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
+        .tab-btn.active {
+            background: #f59e0b; color: white; border-color: #f59e0b;
+        }
+        .tab-btn.active:hover { background: #d97706; }
+        .diagram-toolbar {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.75rem 1.5rem; border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .diagram-toolbar button {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+            font-size: 0.8125rem; font-weight: 500;
+            border: 1px solid #d1d5db; background: white;
+            color: #374151; cursor: pointer; transition: all 0.15s;
+        }
+        .diagram-toolbar button:hover { background: #f3f4f6; border-color: #9ca3af; }
+        .diagram-toolbar .badge {
+            display: inline-flex; align-items: center;
+            padding: 0.125rem 0.5rem; border-radius: 9999px;
+            font-size: 0.75rem; font-weight: 600;
+            background: #fef3c7; color: #92400e;
+        }
+        .nav-separator {
+            display: block; padding: 0.5rem 1.5rem 0.25rem;
+            font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #9ca3af;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-900 h-screen flex overflow-hidden">
 
-            /* Overlay Styles */
-            #overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(240, 242, 245, 0.9);
-                backdrop-filter: blur(8px);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-                transition: opacity 0.3s ease;
-            }
-            .overlay-card {
-                background: white;
-                padding: 2.5rem;
-                border-radius: 12px;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-                text-align: center;
-            }
-
-            /* Icon sizes */
-            .material-icons.large {
-                font-size: 64px;
-                color: var(--primary);
-                margin-bottom: 1rem;
-            }
-            .material-icons.btn-icon {
-                font-size: 20px;
-                vertical-align: middle;
-                margin-right: 8px;
-            }
-
-            /* Sidebar & Main Layout */
-            .sidebar {
-                width: 260px;
-                background: white;
-                border-right: 1px solid #ddd;
-                display: flex;
-                flex-direction: column;
-            }
-            .sidebar-header {
-                padding: 1rem;
-                border-bottom: 1px solid #eee;
-                font-weight: bold;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-            .file-list {
-                flex-grow: 1;
-                overflow-y: auto;
-                list-style: none;
-                padding: 0;
-                margin: 0;
-            }
-            .file-item {
-                padding: 12px 16px;
-                cursor: pointer;
-                border-bottom: 1px solid #f9f9f9;
-                font-size: 0.9rem;
-                transition: 0.2s;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .file-item:hover {
-                background: #f0f7ff;
-                color: var(--primary);
-            }
-            .active-file {
-                background: #e7f1ff;
-                color: var(--primary);
-                font-weight: 600;
-                border-left: 4px solid var(--primary);
-            }
-
-            .main-content {
-                flex-grow: 1;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            .toolbar {
-                padding: 1rem;
-                background: white;
-                border-bottom: 1px solid #ddd;
-                display: flex;
-                gap: 10px;
-                align-items: center;
-            }
-            .table-container {
-                flex-grow: 1;
-                overflow: auto;
-                padding: 1rem;
-            }
-
-            table {
-                border-collapse: collapse;
-                width: 100%;
-                background: white;
-            }
-            td {
-                border: 1px solid #eee;
-                padding: 0;
-            }
-            input {
-                width: 100%;
-                border: none;
-                padding: 10px;
-                box-sizing: border-box;
-                font-size: 0.9rem;
-            }
-            input:focus {
-                outline: 2px solid var(--primary);
-                background: #fff;
-                z-index: 1;
-            }
-
-            button {
-                padding: 10px 20px;
-                border-radius: 6px;
-                border: 1px solid #ccc;
-                background: white;
-                cursor: pointer;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-            }
-            button.primary {
-                background: var(--primary);
-                color: white;
-                border: none;
-            }
-            button:hover {
-                opacity: 0.9;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="overlay">
-            <div class="overlay-card">
-                <span class="material-icons large">folder_open</span>
-                <h2>Initialize Assets</h2>
-                <p>Select your <b>data/assets</b> folder to start editing.</p>
-
-                <button
-                    class="primary"
-                    onclick="unlockFolder()"
-                    style="padding: 15px 30px"
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-900 shadow-xl flex-shrink-0 flex flex-col h-full z-10 text-white">
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+            <svg class="w-6 h-6 text-amber-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            <h1 class="text-lg font-bold tracking-tight">AWS Network Hub</h1>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4" id="nav-menu">
+            <!-- Navigation links injected by JS -->
+        </nav>
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-400 bg-slate-950 flex flex-col gap-3">
+            <div>
+                Total Graph Nodes: <span id="total-nodes" class="font-bold text-amber-500">...</span>
+            </div>
+            <a href="https://www.rescile.com" target="_blank" style="border-bottom: none" class="flex items-center gap-2 hover:text-white transition-colors">
+                <svg
+                    style="height: 1.4em; width: auto"
+                    viewBox="0 0 211 163"
+                    xmlns="http://www.w3.org/2000/svg"
                 >
-                    <span class="material-icons btn-icon">folder</span>
-                    Open Directory
-                </button>
+                    <circle cx="103" cy="81" r="81" fill="#f59e0b" />
+                    <path
+                        d="M72.7 8.1c8.4-.5 16.8.8 24.9 3 5.3 1.8 10 4.2 13.2 8.2 2.8 4.1 2.2 5.1 1.5 10.5l13.2 60.7c3.9 18.8 12.6 21.4 20.5 25.7 7 4.5 13.2 7.4 24.3 10.3-7.6 2.3-15.3 4.5-24.3 5.4-5.5.1-11.1.8-15.7-1.4-10.5-5.5-13.3-12.9-16.4-20.2-4.6-11.9-5.7-23.6-7.8-35.2C101.2 89.5 92.6 98.8 84.8 108.9c-6.1 7.5-12.2 13-18.4 16.9-4.2 2.7-5.5 3.5-9.4 5.2-4.1 1.4-7.8 3.1-14.2 3.8 4.4-3.4 8.8-6.4 13.1-10.8 2.6-2.3 7-7.6 15.4-19.4 6.1-8.6 10.5-16.8 14.6-24.6 5.2-10.6 7.2-16.8 9-24.9.1-3.4-.7-5-1.6-7.4 3.5 1.7 5.6 3.8 8 5.9-1.5-6.3-3-12.6-4.8-19.2-1-3.7-4-8.1-7-12.5-2.1-2.7-4.3-5.2-7-6.9-3.3-2.1-6.7-3.8-9.7-5.5"
+                        fill="#fff"
+                    />
+                </svg>
+                rescile
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50">
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-8 z-0">
+            <h2 id="view-title" class="text-xl font-semibold text-slate-800">Overview</h2>
+            <button onclick="refreshCurrentView()" class="text-sm text-amber-600 hover:text-amber-800 flex items-center transition font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Sync Data
+            </button>
+        </header>
+        
+        <div class="flex-1 overflow-hidden p-8 relative flex flex-col">
+            <!-- Loading Indicator -->
+            <div id="loader" class="hidden absolute inset-0 bg-slate-50 bg-opacity-75 flex items-center justify-center z-10">
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-12 w-12 mb-4"></div>
+            </div>
+
+            <!-- Content Container -->
+            <div id="content-container" class="bg-white shadow-md rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+                <!-- Table/Diagram goes here -->
+                <div class="p-8 text-center text-slate-500 mt-20">Select a component category from the sidebar to explore the transit zone.</div>
             </div>
         </div>
+    </main>
 
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <span class="material-icons">storage</span>
-                Asset Files
-            </div>
-            <ul id="fileList" class="file-list"></ul>
-        </div>
-
-        <div class="main-content">
-            <div class="toolbar">
-                <button onclick="saveFile()" class="primary">
-                    <span class="material-icons btn-icon">save</span>
-                    Save Changes
-                </button>
-                <button onclick="addRow()">
-                    <span class="material-icons btn-icon">add</span>
-                    Add Row
-                </button>
-                <span
-                    id="currentFileName"
-                    style="margin-left: auto; color: #888; font-size: 0.85rem"
-                ></span>
-            </div>
-            <div class="table-container">
-                <table id="csvTable"></table>
-            </div>
-        </div>
-
-        <script>
-            let dirHandle;
-            let currentFileHandle;
-
-            async function unlockFolder() {
-                try {
-                    dirHandle = await window.showDirectoryPicker({
-                        mode: "readwrite",
-                    });
-
-                    document.getElementById("overlay").style.opacity = "0";
-                    setTimeout(
-                        () =>
-                            (document.getElementById("overlay").style.display =
-                                "none"),
-                        300,
-                    );
-
-                    await refreshFileList();
-                } catch (err) {
-                    alert("Permission is required to edit local files.");
-                }
+    <script>
+        // ======================== MERMAID LIBRARY ========================
+        const MERMAID_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        
+        // Configuration mapping UI views to GraphQL queries based on AWS Network Hub models
+        const VIEWS = {
+            providers: {
+                title: "Cloud Providers",
+                icon: "M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z",
+                query: `{ provider { name display_name function region { node { function } } commercial_admin technical_admin } }`,
+                node: "provider",
+                columns: ["display_name", "name", "function", "region", "commercial_admin", "technical_admin"]
+            },
+            subscriptions: {
+                title: "Subscriptions",
+                icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+                query: `{ subscription { name tenant stage } }`,
+                node: "subscription",
+                columns: ["name", "tenant", "stage"]
+            },
+            routers: {
+                title: "Network & Transit Routers",
+                icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+                query: `{ router { name function domain provider { node { name } } cidr } }`,
+                node: "router",
+                columns: ["name", "function", "domain", "provider", "cidr"]
+            },
+            regions: {
+                title: "Endpoint Regions",
+                icon: "M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9",
+                query: `{ region { function service endpoint } }`,
+                node: "region",
+                columns: ["function", "service", "endpoint"]
+            },
+            logins: {
+                title: "Identities & Logins",
+                icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+                query: `{ login { name function role } }`,
+                node: "login",
+                columns: ["name", "function", "role"]
+            },
+            accounts: {
+                title: "Cloud Accounts",
+                icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+                query: `{ account { name function } }`,
+                node: "account",
+                columns: ["name", "function"]
             }
+        };
 
-            async function refreshFileList() {
-                const list = document.getElementById("fileList");
-                list.innerHTML = "";
-                for await (const entry of dirHandle.values()) {
-                    if (entry.kind === "file" && entry.name.endsWith(".csv")) {
-                        const li = document.createElement("li");
-                        li.className = "file-item";
-                        // Added a small icon to the file items too
-                        li.innerHTML = `<span class="material-icons" style="font-size:18px">description</span> ${entry.name}`;
-                        li.onclick = (e) => loadFile(entry, li);
-                        list.appendChild(li);
+        // ======================== TOPOLOGY DIAGRAM DEFINITIONS ========================
+        const TOPOLOGY_VIEWS = {
+            topo_hub: {
+                title: "Network Hub Architecture",
+                icon: "M13 10V3L4 14h7v7l9-11h-7z",
+                description: "Visualizes the structural transit zone bridging AWS providers, endpoint regions, subscriptions, and edge routers.",
+                buildQuery: function() {
+                    return `{
+                        provider { name display_name region { node { function } } }
+                        router { name function provider { node { name } } cidr }
+                        region { function service }
+                        subscription { name tenant stage }
+                    }`;
+                },
+                buildDiagram: function(data) {
+                    let lines = ['graph LR'];
+                    const providers = data.provider || [];
+                    const routers = data.router || [];
+                    const regions = data.region || [];
+                    const subscriptions = data.subscription || [];
+
+                    lines.push('  subgraph AWS["☁️ Cloud Provider Ecosystem"]');
+                    providers.forEach(p => {
+                        const id = sanitizeId('prov_' + p.name);
+                        lines.push(`    ${id}["${esc(p.display_name)}\\n<i>${esc(p.name)}</i>"]`);
+                    });
+                    lines.push('  end');
+
+                    if (subscriptions.length > 0) {
+                        lines.push('  subgraph Subs["📦 Customer Subscriptions"]');
+                        subscriptions.forEach(s => {
+                            const id = sanitizeId('sub_' + s.name);
+                            lines.push(`    ${id}("Tenant: ${esc(s.tenant)}\\n[Stage: ${esc(s.stage)}]")`);
+                        });
+                        lines.push('  end');
+                        
+                        // Map Subscriptions to Provider via BASELINE_TEMPLATE logic 
+                        subscriptions.forEach(s => {
+                            const sId = sanitizeId('sub_' + s.name);
+                            providers.forEach(p => {
+                                lines.push(`  ${sId} -.->|BASELINE_TEMPLATE| ${sanitizeId('prov_' + p.name)}`);
+                            });
+                        });
                     }
+
+                    if (routers.length > 0) {
+                        lines.push('  subgraph TransitZone["🔀 Network Transit Zone"]');
+                        routers.forEach(r => {
+                            const id = sanitizeId('rtr_' + r.name);
+                            const cidr = r.cidr ? `\\nIP: ${esc(r.cidr)}` : '';
+                            lines.push(`    ${id}{{"${esc(r.name)}\\nFn: ${esc(r.function)}${cidr}"}}`);
+                        });
+                        lines.push('  end');
+
+                        routers.forEach(r => {
+                            const rId = sanitizeId('rtr_' + r.name);
+                            // Link router to provider
+                            if (r.provider) {
+                                lines.push(`  ${sanitizeId('prov_' + r.provider[0].node.name)} -->|PROVIDED_BY| ${rId}`);
+                            } else {
+                                // Fallback
+                                providers.forEach(p => lines.push(`  ${sanitizeId('prov_' + p.name)} -->|PROVIDED_BY| ${rId}`));
+                            }
+                        });
+                    }
+
+                    if (regions.length > 0) {
+                        lines.push('  subgraph Endpoints["🌍 Region Endpoints"]');
+                        regions.forEach(r => {
+                            const id = sanitizeId('reg_' + r.function);
+                            lines.push(`    ${id}[/"Region: ${esc(r.function)}"\\]`);
+                        });
+                        lines.push('  end');
+
+                        providers.forEach(p => {
+                            const pId = sanitizeId('prov_' + p.name);
+                            regions.forEach(r => {
+                                // Optional logic to match provider region, fallback to generic
+                                lines.push(`  ${pId} -->|MANAGED_BY| ${sanitizeId('reg_' + r.function)}`);
+                            });
+                        });
+                    }
+
+                    // Styling
+                    lines.push('  classDef provStyle fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#9a3412');
+                    lines.push('  classDef subStyle fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#166534');
+                    lines.push('  classDef routerStyle fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e40af');
+                    lines.push('  classDef regStyle fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87');
+                    
+                    providers.forEach(p => lines.push(`  class ${sanitizeId('prov_' + p.name)} provStyle`));
+                    subscriptions.forEach(s => lines.push(`  class ${sanitizeId('sub_' + s.name)} subStyle`));
+                    routers.forEach(r => lines.push(`  class ${sanitizeId('rtr_' + r.name)} routerStyle`));
+                    regions.forEach(r => lines.push(`  class ${sanitizeId('reg_' + r.function)} regStyle`));
+
+                    return lines.join('\n');
                 }
-            }
+            },
+            topo_governance: {
+                title: "Identity & Access Governance",
+                icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+                description: "Security model linking logical commercial/technical accounts to virtual identity logins handling the provider.",
+                buildQuery: function() {
+                    return `{
+                        account { name function }
+                        login { name function role }
+                        provider { name display_name commercial_admin technical_admin }
+                    }`;
+                },
+                buildDiagram: function(data) {
+                    let lines = ['graph TB'];
+                    const accounts = data.account || [];
+                    const logins = data.login || [];
+                    const providers = data.provider || [];
 
-            async function loadFile(handle, element) {
-                currentFileHandle = handle;
-                document
-                    .querySelectorAll(".file-item")
-                    .forEach((el) => el.classList.remove("active-file"));
-                element.classList.add("active-file");
-
-                const file = await handle.getFile();
-                const content = await file.text();
-                document.getElementById("currentFileName").innerText =
-                    handle.name;
-                renderTable(content);
-            }
-
-            function renderTable(csvText) {
-                const table = document.getElementById("csvTable");
-                table.innerHTML = "";
-                const rows = csvText
-                    .split(/\r?\n/)
-                    .filter((r) => r.trim() !== "");
-                rows.forEach((row) => {
-                    const tr = table.insertRow();
-                    row.split(",").forEach((cell) => {
-                        const td = tr.insertCell();
-                        const input = document.createElement("input");
-                        input.value = cell.replace(/^"|"$/g, "");
-                        td.appendChild(input);
+                    lines.push('  subgraph Orgs["🏢 Base Accounts"]');
+                    accounts.forEach(a => {
+                        const id = sanitizeId('acc_' + a.name);
+                        lines.push(`    ${id}["${esc(a.name)}\\nFn: ${esc(a.function)}"]`);
                     });
-                });
-            }
+                    lines.push('  end');
 
-            function addRow() {
-                const table = document.getElementById("csvTable");
-                if (!table.rows.length) return;
-                const colCount = table.rows[0].cells.length;
-                const row = table.insertRow();
-                for (let i = 0; i < colCount; i++) {
-                    row.insertCell().innerHTML = '<input value="">';
+                    lines.push('  subgraph Logins["🔑 Virtual IAM Logins"]');
+                    logins.forEach(l => {
+                        const id = sanitizeId('log_' + l.name);
+                        lines.push(`    ${id}(["${esc(l.name)}\\nRole: ${esc(l.role)}"])`);
+                    });
+                    lines.push('  end');
+
+                    lines.push('  subgraph Provs["☁️ Managed Providers"]');
+                    providers.forEach(p => {
+                        const id = sanitizeId('prov_' + p.name);
+                        lines.push(`    ${id}{{"${esc(p.display_name)}\\n(${esc(p.name)})"}}`);
+                    });
+                    lines.push('  end');
+
+                    // Provider <-> Account relations (DEFINED_BY)
+                    accounts.forEach(a => {
+                        const aId = sanitizeId('acc_' + a.name);
+                        providers.forEach(p => {
+                            lines.push(`  ${aId} -->|DEFINED_BY| ${sanitizeId('prov_' + p.name)}`);
+                        });
+                    });
+
+                    // Provider <-> Login relations (RESPONSIBLE_FOR / MANAGED_BY)
+                    logins.forEach(l => {
+                        const lId = sanitizeId('log_' + l.name);
+                        providers.forEach(p => {
+                            const pId = sanitizeId('prov_' + p.name);
+                            // Evaluate based on join_provider semantics
+                            let linked = false;
+                            
+                            // Loose matching since the data might format strings differently
+                            const lFullName = `${l.function}_${l.role}`;
+                            
+                            if (p.commercial_admin === l.name || p.commercial_admin === l.function || p.commercial_admin === lFullName || l.role === 'account') {
+                                lines.push(`  ${lId} -.->|RESPONSIBLE_FOR| ${pId}`);
+                                linked = true;
+                            }
+                            if (p.technical_admin === l.name || p.technical_admin === l.function || p.technical_admin === lFullName || l.role === 'cloud') {
+                                lines.push(`  ${lId} -.->|MANAGED_BY| ${pId}`);
+                                linked = true;
+                            }
+                            
+                            if(!linked && (l.role === 'audit' || l.role === 'log' || l.role === 'network' || l.role === 'platform')) {
+                                lines.push(`  ${lId} -.->|OPERATES| ${pId}`);
+                            }
+                        });
+                    });
+
+                    // Styling
+                    lines.push('  classDef accStyle fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a');
+                    lines.push('  classDef logStyle fill:#fef08a,stroke:#ca8a04,stroke-width:2px,color:#713f12');
+                    lines.push('  classDef provStyle fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#9a3412');
+                    
+                    accounts.forEach(a => lines.push(`  class ${sanitizeId('acc_' + a.name)} accStyle`));
+                    logins.forEach(l => lines.push(`  class ${sanitizeId('log_' + l.name)} logStyle`));
+                    providers.forEach(p => lines.push(`  class ${sanitizeId('prov_' + p.name)} provStyle`));
+
+                    return lines.join('\n');
                 }
             }
+        };
 
-            async function saveFile() {
-                if (!currentFileHandle) return;
-                const table = document.getElementById("csvTable");
-                let csvContent = "";
-                Array.from(table.rows).forEach((row) => {
-                    const rowData = Array.from(row.cells)
-                        .map((td) => `"${td.firstChild.value}"`)
-                        .join(",");
-                    csvContent += rowData + "\r\n";
-                });
-
-                const writable = await currentFileHandle.createWritable();
-                await writable.write(csvContent);
-                await writable.close();
-
-                const btn = event.currentTarget;
-                const originalText = btn.innerHTML;
-                btn.innerHTML =
-                    '<span class="material-icons btn-icon">check</span> Saved!';
-                setTimeout(() => (btn.innerHTML = originalText), 2000);
+        // ======================== MERMAID HELPERS ========================
+        function sanitizeId(str) {
+            return str.replace(/[^a-zA-Z0-9_]/g, '_').replace(/_{2,}/g, '_');
+        }
+        function esc(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/"/g, '#quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        function resolveNames(rel) {
+            if (!rel) return [];
+            if (typeof rel === 'string') return [rel];
+            if (Array.isArray(rel)) {
+                return rel.map(r => {
+                    if (typeof r === 'string') return r;
+                    if (r && r.node && r.node.name) return r.node.name;
+                    if (r && r.name) return r.name;
+                    return null;
+                }).filter(Boolean);
             }
-        </script>
-    </body>
+            if (rel.node && rel.node.name) return [rel.node.name];
+            if (rel.name) return [rel.name];
+            return [];
+        }
+
+        let mermaidReady = false;
+        function loadMermaid() {
+            return new Promise((resolve, reject) => {
+                if (mermaidReady) { resolve(); return; }
+                const script = document.createElement('script');
+                script.src = MERMAID_CDN;
+                script.onload = () => {
+                    mermaid.initialize({ startOnLoad: false, theme: 'base', securityLevel: 'loose',
+                        themeVariables: { fontSize: '14px', primaryColor: '#f59e0b', fontFamily: 'Inter, sans-serif' }
+                    });
+                    mermaidReady = true;
+                    resolve();
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        let currentViewKey = null;
+        let currentTopoKey = null;
+
+        // Core GraphQL fetch utility
+        async function fetchGraphQL(query) {
+            try {
+                const response = await fetch('/graphql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const result = await response.json();
+                if (result.errors) {
+                    console.error("GraphQL Errors:", result.errors);
+                    throw new Error(result.errors[0].message);
+                }
+                return result.data;
+            } catch (error) {
+                console.error("Failed to fetch graph data:", error);
+                throw error;
+            }
+        }
+
+        // Setup the navigation sidebar
+        function setupNavigation() {
+            const navMenu = document.getElementById('nav-menu');
+            Object.keys(VIEWS).forEach(key => {
+                const view = VIEWS[key];
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-6 py-3 flex items-center text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white text-slate-300 nav-btn`;
+                btn.id = `nav-${key}`;
+                btn.innerHTML = `
+                    <svg class="w-5 h-5 mr-3 text-slate-500 group-hover:text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${view.icon}"></path></svg>
+                    ${view.title}
+                `;
+                btn.onclick = () => loadView(key);
+                navMenu.appendChild(btn);
+            });
+
+            // Topology separator
+            const sep = document.createElement('span');
+            sep.className = 'nav-separator text-slate-500 mt-4';
+            sep.textContent = 'Topology Visualizations';
+            navMenu.appendChild(sep);
+
+            Object.keys(TOPOLOGY_VIEWS).forEach(key => {
+                const view = TOPOLOGY_VIEWS[key];
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-6 py-3 flex items-center text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white text-slate-300 nav-btn`;
+                btn.id = `nav-${key}`;
+                btn.innerHTML = `
+                    <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${view.icon}"></path></svg>
+                    ${view.title}
+                `;
+                btn.onclick = () => loadTopologyView(key);
+                navMenu.appendChild(btn);
+            });
+        }
+
+        function setActiveNav(navId) {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-800', 'text-white', 'border-l-4', 'border-amber-500');
+                btn.classList.add('text-slate-300');
+            });
+            const activeBtn = document.getElementById(navId);
+            if (!activeBtn) return;
+            activeBtn.classList.remove('text-slate-300');
+            activeBtn.classList.add('bg-slate-800', 'text-white', 'border-l-4', 'border-amber-500');
+        }
+
+        // Format cell data safely
+        function formatCellData(value) {
+            if (value === null || value === undefined || value === "") return '<span class="text-slate-300">-</span>';
+            if (typeof value === 'boolean') {
+                return value ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Yes</span>' 
+                             : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">No</span>';
+            }
+            if (Array.isArray(value)) {
+                if (value.length === 0) return '<span class="text-slate-300">-</span>';
+                if (typeof value[0] === 'object' && value[0] !== null) {
+                    if ('node' in value[0]) {
+                        return value.map(v => v.node && (v.node.name || v.node.function || v.node.id) ? (v.node.name || v.node.function || v.node.id) : '').filter(Boolean).join(', ');
+                    }
+                    return value.map(v => JSON.stringify(v)).join(', ');
+                }
+                return value.join(', ');
+            }
+            if (typeof value === 'object') {
+                return `<pre class="text-xs text-slate-600 bg-slate-50 p-1 rounded border border-slate-100 max-h-24 overflow-y-auto">${JSON.stringify(value, null, 2)}</pre>`;
+            }
+            return String(value);
+        }
+
+        // Render the HTML table
+        function renderTable(data, columns) {
+            if (!data || data.length === 0) {
+                return `<div class="p-12 text-center text-slate-500 flex flex-col items-center">
+                            <svg class="w-12 h-12 mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            <p>No records found for this infrastructure component.</p>
+                        </div>`;
+            }
+
+            let thead = columns.map(c => `<th class="px-6 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider bg-slate-50 sticky top-0 shadow-sm border-b border-slate-200">${c.replace('_', ' ')}</th>`).join('');
+
+            let tbody = data.map(row => {
+                let tr = columns.map(c => `<td class="px-6 py-4 text-sm text-slate-700 align-top border-t border-slate-100">${formatCellData(row[c])}</td>`).join('');
+                return `<tr class="hover:bg-amber-50 transition-colors group">${tr}</tr>`;
+            }).join('');
+
+            return `<div class="table-container overflow-x-auto overflow-y-auto h-full max-h-[calc(100vh-8rem)]">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead><tr>${thead}</tr></thead>
+                            <tbody class="bg-white divide-y divide-slate-100">${tbody}</tbody>
+                        </table>
+                    </div>`;
+        }
+
+        // Load and render a specific view
+        async function loadView(viewKey) {
+            currentViewKey = viewKey;
+            currentTopoKey = null;
+            const viewConfig = VIEWS[viewKey];
+            
+            document.getElementById('view-title').innerText = viewConfig.title;
+            setActiveNav(`nav-${viewKey}`);
+            
+            const loader = document.getElementById('loader');
+            const container = document.getElementById('content-container');
+            
+            loader.classList.remove('hidden');
+            
+            try {
+                const data = await fetchGraphQL(viewConfig.query);
+                let nodes = data[viewConfig.node] || [];
+                container.innerHTML = renderTable(nodes, viewConfig.columns);
+            } catch (error) {
+                container.innerHTML = `<div class="p-6 text-red-600 bg-red-50 m-4 rounded border border-red-200">
+                    <strong>Error fetching data:</strong> ${error.message}
+                </div>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        // Load and render a topology diagram view
+        async function loadTopologyView(topoKey) {
+            currentTopoKey = topoKey;
+            currentViewKey = null;
+            const topoConfig = TOPOLOGY_VIEWS[topoKey];
+            let diagramDef = '';
+
+            document.getElementById('view-title').innerText = topoConfig.title;
+            setActiveNav(`nav-${topoKey}`);
+
+            const loader = document.getElementById('loader');
+            const container = document.getElementById('content-container');
+            loader.classList.remove('hidden');
+
+            try {
+                await loadMermaid();
+                const query = topoConfig.buildQuery();
+                const data = await fetchGraphQL(query);
+                diagramDef = topoConfig.buildDiagram(data);
+
+                // Render mermaid
+                const diagramId = 'mermaid-' + topoKey + '-' + Date.now();
+                const { svg } = await mermaid.render(diagramId, diagramDef);
+
+                container.innerHTML = `
+                    <div class="diagram-toolbar">
+                        <span class="badge">${topoConfig.title}</span>
+                        <span class="text-xs text-slate-500 ml-2">${topoConfig.description}</span>
+                        <div class="flex gap-1 ml-4 border border-slate-200 rounded-lg p-0.5 bg-slate-100">
+                            <button class="tab-btn active" id="tab-diagram-btn" onclick="switchDiagramTab('diagram')">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"></path></svg>
+                                Visual
+                            </button>
+                            <button class="tab-btn" id="tab-code-btn" onclick="switchDiagramTab('code')">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                Source
+                            </button>
+                        </div>
+                        <div class="ml-auto flex gap-2">
+                            <button onclick="zoomDiagram(1.2)" title="Zoom In">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                                Zoom In
+                            </button>
+                            <button onclick="zoomDiagram(0.8)" title="Zoom Out">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path></svg>
+                                Zoom Out
+                            </button>
+                            <button onclick="zoomDiagram(0)" title="Reset Zoom">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    <div class="diagram-wrapper">
+                        <div class="diagram-container bg-slate-50" id="diagram-content">${svg}</div>
+                        <div class="diagram-code-container" id="diagram-code-content">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-sm font-medium text-slate-700">Mermaid Graph Code</span>
+                                <button onclick="copyDiagramCode()" class="tab-btn text-xs" id="copy-code-btn">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    Copy Script
+                                </button>
+                            </div>
+                            <pre id="diagram-code-text"></pre>
+                        </div>
+                    </div>
+                `;
+
+                const codeEl = document.getElementById('diagram-code-text');
+                if (codeEl) codeEl.textContent = diagramDef;
+                setupDiagramPanZoom();
+            } catch (error) {
+                container.innerHTML = `<div class="p-6 text-red-600 bg-red-50 m-4 rounded border border-red-200">
+                    <strong>Error rendering network topology:</strong> ${error.message}
+                    <pre class="mt-2 text-xs bg-white p-2 rounded overflow-auto max-h-48">${error.stack || ''}</pre>
+                </div>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        let currentZoom = 1;
+        let currentPanX = 0;
+        let currentPanY = 0;
+
+        function switchDiagramTab(tab) {
+            const diagramEl = document.getElementById('diagram-content');
+            const codeEl = document.getElementById('diagram-code-content');
+            const diagramBtn = document.getElementById('tab-diagram-btn');
+            const codeBtn = document.getElementById('tab-code-btn');
+            if (!diagramEl || !codeEl) return;
+
+            if (tab === 'code') {
+                diagramEl.style.display = 'none';
+                codeEl.style.display = 'block';
+                diagramBtn.classList.remove('active');
+                codeBtn.classList.add('active');
+            } else {
+                diagramEl.style.display = 'block';
+                codeEl.style.display = 'none';
+                diagramBtn.classList.add('active');
+                codeBtn.classList.remove('active');
+            }
+        }
+
+        function copyDiagramCode() {
+            const codeEl = document.getElementById('diagram-code-text');
+            if (!codeEl) return;
+            navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                const btn = document.getElementById('copy-code-btn');
+                if (btn) {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+                    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+                }
+            });
+        }
+
+        function setupDiagramPanZoom() {
+            const el = document.getElementById('diagram-content');
+            if (!el) return;
+            currentZoom = 1;
+            currentPanX = 0;
+            currentPanY = 0;
+
+            let isDragging = false;
+            let startX, startY, scrollLeft, scrollTop;
+
+            el.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                isDragging = true;
+                el.classList.add('dragging');
+                startX = e.pageX - el.offsetLeft;
+                startY = e.pageY - el.offsetTop;
+                scrollLeft = el.scrollLeft;
+                scrollTop = el.scrollTop;
+                e.preventDefault();
+            });
+
+            el.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const x = e.pageX - el.offsetLeft;
+                const y = e.pageY - el.offsetTop;
+                el.scrollLeft = scrollLeft - (x - startX);
+                el.scrollTop = scrollTop - (y - startY);
+            });
+
+            el.addEventListener('mouseup', () => { isDragging = false; el.classList.remove('dragging'); });
+            el.addEventListener('mouseleave', () => { isDragging = false; el.classList.remove('dragging'); });
+
+            el.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const factor = e.deltaY < 0 ? 1.1 : 0.9;
+                zoomDiagram(factor);
+            }, { passive: false });
+        }
+
+        function zoomDiagram(factor) {
+            const el = document.getElementById('diagram-content');
+            if (!el) return;
+            const svg = el.querySelector('svg');
+            if (!svg) return;
+
+            if (factor === 0) {
+                currentZoom = 1;
+            } else {
+                currentZoom *= factor;
+            }
+            currentZoom = Math.max(0.2, Math.min(currentZoom, 5));
+            svg.style.transform = `scale(${currentZoom})`;
+            svg.style.transformOrigin = 'top left';
+        }
+
+        function refreshCurrentView() {
+            if (currentViewKey) {
+                loadView(currentViewKey);
+            } else if (currentTopoKey) {
+                loadTopologyView(currentTopoKey);
+            }
+            updateGraphStats();
+        }
+
+        async function updateGraphStats() {
+            try {
+                const data = await fetchGraphQL(`{ countNodes }`);
+                document.getElementById('total-nodes').innerText = data.countNodes;
+            } catch (e) {
+                document.getElementById('total-nodes').innerText = "Offline";
+            }
+        }
+
+        // Initialize App
+        window.onload = () => {
+            setupNavigation();
+            updateGraphStats();
+            // Default load the first view
+            loadView('providers');
+        };
+    </script>
+</body>
 </html>
